@@ -1,4 +1,6 @@
 import pandas as pd
+import socket
+import threading
 
 # csv 초기화하는 함수
 def init():
@@ -38,6 +40,58 @@ def detect_duplic(user_list, user_id):
     else:
         return "exist"
 
+def make_user_list(user_list):
+    list = ""
+    user_id_list = user_list['user_id']
+
+    for i in range(len(user_id_list)):
+        list += f"{user_id_list[i]}\n"
+
+    return list
+
+# user가 강제종료 했을 때 어떻게 해야 csv에서 파일을 잘 처리할 수 있을까? -> 그냥 이전 코드 참고함
+# 1. 연결 종료된 것을 확인해야함!!(이게 문제) -> 이전 코드에서 server에서 계속 data.recv() 하다가, try - except 문으로 처리함
+# 주기적으로 로그인 서버에 연결해서 메시지를 보내게 해야 하는건가?
+# 2. 연결 종료된 클라이언트 id를 가져옴
+# 3. delete 해도 되고...
+def handle(user_list, connect, addr):
+    # ip주소, 포트 번호 분리
+    ip_addr, port_num = addr
+
+    # id 중복이면 다시 입력받게 하고, 중복이 아니면 추가하고 break
+    while True:
+        user_id = connect.recv(1024).decode()
+
+        if detect_duplic(user_list, user_id) == "exist":
+            connect.send("This id already exists.".encode())
+        else:
+            add(user_list, user_id, ip_addr, port_num)
+            break
+
+    # 사용자 목록 전송
+    connect.send(f"online user\n{make_user_list(user_list)}".encode())
+
+    # 메시지를 받는데, 못 받았으면 except로 강제종료했다는 판단하에 user_id csv에서 제거
+    while True:
+        try:
+            message = connect.recv(1024).decode()
+        except:
+            delete(user_list, user_id)
+            break
+
+init()
+user_list = pd.read_csv("user_list.csv")
+
+server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+server_socket.bind(('127.0.0.1', 8000))
+server_socket.listen(5)
+print(f"server : 127.0.0.1:8000")
+
+while True:
+    connect, addr = server_socket.accept()
+    threading.Thread(target=handle, args=(user_list, connect, addr)).start()
+
+# # 여기부터는 그냥 테스트 코드입니다
 # # csv 파일 초기화
 # init()
 #
@@ -95,6 +149,11 @@ def detect_duplic(user_list, user_id):
 # # delete 결과
 # print(user_list)
 #
+# print("=====================")
 # # user 중복 여부
 # print(detect_duplic(user_list, "test1"))
 # print(detect_duplic(user_list, "test3"))
+#
+# print("=====================")
+# print(make_user_list(user_list))
+
