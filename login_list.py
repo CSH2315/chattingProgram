@@ -10,37 +10,45 @@ def init():
     df.to_csv("user_list.csv", index=False)
 
 # csv에 user 추가(행 추가)
-def add(user_list, user_id, ip_addr, port_num):
+def add(user_id, ip_addr, port_num):
+    global user_list
+
     user_list.loc[len(user_list)] = [user_id, ip_addr, port_num]
     user_list.to_csv("user_list.csv", index=False)
 
 
 # id로 csv에서 port번호 찾기
-def find(user_list, user_id):
-    port = user_list.loc[user_list['user_id'] == user_id, ['port_num']]
+def find(user_id):
+    global user_list
 
+    port = user_list.loc[user_list['user_id'] == user_id, ['port_num']]
     if port.empty == True:
         return -1
     else:
         return int(port.iloc[0, 0])
 
 # 추가로 만든 기능 : 특정 user_id가 연결 종료 시 user_list에서 정보 삭제하는 함수
-def delete(user_list, user_id):
+def delete(user_id):
+    global user_list
+
     inx = user_list[user_list['user_id'] == user_id].index
     user_list.drop(inx, inplace=True)
     user_list.reset_index(drop=True, inplace=True)
     user_list.to_csv("user_list.csv", index=False)
 
 # user 존재 여부 확인
-def detect_duplic(user_list, user_id):
-    port = user_list.loc[user_list['user_id'] == user_id]
+def detect_duplic(user_id):
+    global user_list
 
+    port = user_list.loc[user_list['user_id'] == user_id]
     if port.empty:
         return "not exist"
     else:
         return "exist"
 
-def make_user_list(user_list):
+def make_user_list():
+    global user_list
+
     list = ""
     user_id_list = user_list['user_id']
 
@@ -54,7 +62,9 @@ def make_user_list(user_list):
 # 주기적으로 로그인 서버에 연결해서 메시지를 보내게 해야 하는건가?
 # 2. 연결 종료된 클라이언트 id를 가져옴
 # 3. delete 해도 되고...
-def handle(user_list, connect, addr):
+def handle(connect, addr):
+    global user_list
+
     # ip주소, 포트 번호 분리
     ip_addr, port_num = addr
 
@@ -62,21 +72,21 @@ def handle(user_list, connect, addr):
     while True:
         user_id = connect.recv(1024).decode()
 
-        if detect_duplic(user_list, user_id) == "exist":
+        if detect_duplic(user_id) == "exist":
             connect.send("This id already exists.".encode())
         else:
-            add(user_list, user_id, ip_addr, port_num)
+            add(user_id, ip_addr, port_num)
             break
 
     # 사용자 목록 전송
-    connect.send(f"online user\n{make_user_list(user_list)}".encode())
+    connect.send(f"online user\n{make_user_list()}".encode())
 
     # 메시지를 받는데, 못 받았으면 except로 강제종료했다는 판단하에 user_id csv에서 제거
     while True:
         try:
             message = connect.recv(1024).decode()
         except:
-            delete(user_list, user_id)
+            delete(user_id)
             break
 
 init()
@@ -89,10 +99,10 @@ print(f"server : 127.0.0.1:8000")
 
 while True:
     connect, addr = server_socket.accept()
-    threading.Thread(target=handle, args=(user_list, connect, addr)).start()
+    threading.Thread(target=handle, args=(connect, addr)).start()
 
-# # 여기부터는 그냥 테스트 코드입니다
-# # csv 파일 초기화
+# 여기부터는 그냥 테스트 코드입니다
+# csv 파일 초기화
 # init()
 #
 # # csv 파일 열기
@@ -105,18 +115,18 @@ while True:
 # ip_addr, port_num = ("127.0.0.1", 7900)
 #
 # # user 추가
-# add(user_list, user_id, ip_addr, port_num)
+# add(user_id, ip_addr, port_num)
 #
 # # 반복문으로 add 테스트
 # for i in range(2, 11):
-#     add(user_list, f"test{i}", "127.0.0.1", (i + 1) * 500)
+#     add(f"test{i}", "127.0.0.1", (i + 1) * 500)
 #
 # # add한 결과
 # print(user_list)
 # print("=====================")
 #
 # # find 테스트
-# want_port = find(user_list, user_id)
+# want_port = find(user_id)
 # if want_port == -1:
 #     print("이 id를 가진 user가 없습니다.")
 # else:
@@ -124,14 +134,14 @@ while True:
 #
 # # 반복문으로 find 테스트
 # for i in range(2, 11):
-#     want_port = find(user_list, f"test{i}")
+#     want_port = find(f"test{i}")
 #     if want_port == -1:
 #         print("이 id를 가진 user가 없습니다.")
 #     else:
 #         print(f"test{i}'s port : {want_port}")
 #
 # # 없는 user에 대한 find 테스트
-# want_port = find(user_list, "test100")
+# want_port = find("test100")
 # if want_port == -1:
 #     print("이 id를 가진 user가 없습니다.")
 # else:
@@ -141,19 +151,19 @@ while True:
 #
 # # 아마 클라이언트가 나가는 상황에서 삭제하는 코드도 있어야 할듯...
 # # test1 유저 삭제
-# delete(user_list, user_id)
+# delete(user_id)
 #
 # # 없는 user를 삭제하는데 오류 발생 X
-# delete(user_list, "test100")
+# delete("test100")
 #
 # # delete 결과
 # print(user_list)
 #
 # print("=====================")
 # # user 중복 여부
-# print(detect_duplic(user_list, "test1"))
-# print(detect_duplic(user_list, "test3"))
+# print(detect_duplic("test1"))
+# print(detect_duplic("test3"))
 #
 # print("=====================")
-# print(make_user_list(user_list))
+# print(make_user_list())
 
