@@ -71,7 +71,7 @@ print(f'Client {ID} listening on {host}:{listen_port}')
 # Ensure the other client has time to set up listening
 time.sleep(1)
 
-    # Connect socket
+# Connect socket
 s_connect = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 try:
     s_connect.connect((host, connect_port))
@@ -84,7 +84,6 @@ except ConnectionRefusedError:
 conn, addr = s_listen.accept()
 print(f'Client {ID} accepted connection from {addr}')
 
-def recv_and_send()
 # Start receiving and sending threads
 receive_thread = threading.Thread(target=handle_receive, args=(conn,))
 send_thread = threading.Thread(target=handle_send, args=(s_connect,))
