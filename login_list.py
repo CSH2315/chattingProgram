@@ -11,11 +11,14 @@ def init():
 
 # csv에 user 추가(행 추가)
 def add(user_id, ip_addr, port_num):
+
     global user_list
+    print(user_list)
 
     user_list.loc[len(user_list)] = [user_id, ip_addr, port_num]
     user_list.to_csv("user_list.csv", index=False)
 
+    print(user_list)
 
 # id로 csv에서 port번호 찾기
 def find(user_id):
@@ -37,10 +40,19 @@ def delete(user_id):
     user_list.to_csv("user_list.csv", index=False)
 
 # user 존재 여부 확인
-def detect_duplic(user_id):
+def detect_duplic_id(user_id):
     global user_list
 
     port = user_list.loc[user_list['user_id'] == user_id]
+    if port.empty:
+        return "not exist"
+    else:
+        return "exist"
+
+def detect_duplic_port(port_num):
+    global user_list
+
+    port = user_list.loc[user_list['port_num'] == port_num]
     if port.empty:
         return "not exist"
     else:
@@ -72,10 +84,10 @@ def handle(connect, addr):
     while True:
         user_id = connect.recv(1024).decode()
 
-        if detect_duplic(user_id) == "exist":
-            connect.send("This id already exists.".encode())
+        if detect_duplic_id(user_id) == "exist":
+            connect.send("새로운 아이디를 설정해주세요\n********************************************************".encode())
         else:
-            add(user_id, ip_addr, port_num)
+            connect.send("성공".encode())
             break
 
     # 사용자 목록 전송
@@ -89,17 +101,19 @@ def handle(connect, addr):
             delete(user_id)
             break
 
-init()
+# init()
 user_list = pd.read_csv("user_list.csv")
 
-server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-server_socket.bind(('127.0.0.1', 8000))
-server_socket.listen(5)
-print(f"server : 127.0.0.1:8000")
+if __name__ == '__main__':
 
-while True:
-    connect, addr = server_socket.accept()
-    threading.Thread(target=handle, args=(connect, addr)).start()
+    server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server_socket.bind(('127.0.0.1', 8000))
+    server_socket.listen(5)
+    print("server : 127.0.0.1:8000")
+
+    while True:
+        connect, addr = server_socket.accept()
+        threading.Thread(target=handle, args=(connect, addr)).start()
 
 # 여기부터는 그냥 테스트 코드입니다
 # csv 파일 초기화
